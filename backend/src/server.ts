@@ -18,8 +18,8 @@ app.use((req,res,next)=>{
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
 });
-app.use('/api',router);
-
+//updating this to test a feature in 100xSWE
+app.use('/api/v1',router);
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
   res.status(500).json({

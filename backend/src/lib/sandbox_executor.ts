@@ -164,25 +164,25 @@ export class SandboxExecutor {
     }
 
     /**
-     * PUBLIC: selectExactFileWithLLM
-     * Uses LLM to select THE EXACT file to modify from candidates
+     * PUBLIC: selectFilesToModify
+     * Uses LLM to select ALL files that need modification (can be multiple)
      */
-    async selectExactFileWithLLM(
+    async selectFilesToModify(
         sandbox: Sandbox,
         userPrompt: string,
         candidateFiles: string[],
         directory: string = '/home/user/project'
-    ): Promise<string> {
-        console.log(`\n🤖 Using LLM to analyze ${candidateFiles.length} candidate files...`);
+    ): Promise<string[]> {
+        console.log(`\nUsing LLM to analyze ${candidateFiles.length} candidate files...`);
 
         const fileContents = new Map<string, string>();
         for (const filePath of candidateFiles) {
             try {
                 const content = await this.readFile(sandbox, filePath);
                 fileContents.set(filePath, content);
-                console.log(`  ✓ Read ${filePath} (${content.length} chars)`);
+                console.log(`  Read ${filePath} (${content.length} chars)`);
             } catch (error) {
-                console.error(`  ✗ Failed to read ${filePath}`);
+                console.error(`  Failed to read ${filePath}`);
             }
         }
 
@@ -191,66 +191,57 @@ export class SandboxExecutor {
             filesSection += `\n### FILE: ${path}\n\`\`\`\n${content}\n\`\`\`\n\n`;
         });
 
-        const llmPrompt = `You are an expert software developer. Given a user's request and multiple candidate files, identify the EXACT file path that should be modified.
+        const llmPrompt = `You are an expert software developer. Given a user's request and multiple candidate files, identify ALL files that should be modified.
 
-USER REQUEST:
-${userPrompt}
+    USER REQUEST:
+    ${userPrompt}
 
-CANDIDATE FILES WITH COMPLETE CODE:
-${filesSection}
+    CANDIDATE FILES WITH COMPLETE CODE:
+    ${filesSection}
 
-INSTRUCTIONS:
-- Analyze each file's complete code
-- Determine which single file is the most relevant to modify for the user's request
-- Return ONLY the file path, nothing else
-- The path should be exactly as shown above (e.g., "/home/user/project/src/middleware/auth.ts")
+    INSTRUCTIONS:
+    - Analyze each file's complete code
+    - Determine which files are relevant to the user's request
+    - If the request applies to ALL files (like "add comments to all .py files"), return ALL file paths
+    - If the request is specific (like "fix bug in auth.py"), return only that file
+    - Return one file path per line
+    - Paths should be exactly as shown above
 
-OUTPUT FORMAT:
-Return only the file path, for example: /home/user/project/src/components/Button.tsx`;
+    OUTPUT FORMAT:
+    Return file paths, one per line:
+    /home/user/project/helper.py
+    /home/user/project/main.py
+    /home/user/project/unknow.py`;
 
-        console.log('\n📤 Sending to LLM for analysis...');
+        console.log('\nSending to LLM for analysis...');
 
-        // ✨ FIXED: Changed maxOutputTokens to maxTokens (correct parameter name)
         const { text } = await generateText({
             model: gemini,
             prompt: llmPrompt,
-            maxOutputTokens: 100,
+            maxOutputTokens: 200,
         });
 
-        const selectedFile = text.trim();
+        // Parse multiple file paths
+        const selectedFiles = text
+            .trim()
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0 && line.startsWith('/'));
         
-        console.log(`\n✅ LLM Selected File: ${selectedFile}\n`);
-        console.log('━'.repeat(60));
-        console.log(`📁 EXACT FILE TO MODIFY: ${selectedFile}`);
-        console.log('━'.repeat(60) + '\n');
+        console.log(`\nLLM Selected ${selectedFiles.length} file(s):`);
+        selectedFiles.forEach((file, index) => {
+            console.log(`  ${index + 1}. ${file}`);
+        });
+        console.log('');
 
-        return selectedFile;
+        return selectedFiles;
     }
+
 
     /**
      * PUBLIC: findExactFileToModify
      * Complete two-stage workflow: grep search + LLM selection
      */
-    async findExactFileToModify(
-        sandbox: Sandbox,
-        userPrompt: string,
-        directory: string = '/home/user/project'
-    ): Promise<{ exactFile: string, allCandidates: string[], keywords: string[] }> {
-        const { files, keywords } = await this.findRelevantFiles(sandbox, userPrompt, directory);
-
-        if (files.length === 0) {
-            throw new Error('No candidate files found matching the user prompt');
-        }
-
-        const exactFile = await this.selectExactFileWithLLM(sandbox, userPrompt, files, directory);
-
-        return {
-            exactFile,
-            allCandidates: files,
-            keywords
-        };
-    }
-
     /**
      * PUBLIC: getFileContents
      * Reads contents of multiple files with optional truncation
