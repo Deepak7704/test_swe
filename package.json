@@ -15,5 +15,9 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "googleapis": "^166.0.0"
   }
 }
