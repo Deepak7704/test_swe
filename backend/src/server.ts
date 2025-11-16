@@ -19,6 +19,7 @@ app.use((req,res,next)=>{
     console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
     next();
 });
+//TESTING THE 100XSWE PROJECT
 app.use('/api',router);
 app.use('/auth', authRouter);
 
