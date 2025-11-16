@@ -98,7 +98,7 @@ async function executeSearch(state: GraphStateType): Promise<Partial<GraphStateT
     }
     
     console.log(`Command: ${command}`);
-    // Testing 100xSWE Project
+    // Testing 100xSWE Project backend with complete implementation
     const result = await state.sandbox.commands.run(command, { timeoutMs: 30000 });
     const files: string[] = result.stdout
         .split('\n')
